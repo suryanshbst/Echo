@@ -7,19 +7,20 @@
 }
 
 :root {
-  --bg: #080808;
-  --bg-raised: #0f0f0f;
-  --surface: #141414;
-  --surface-2: #1a1a1a;
-  --border: #242424;
-  --border-2: #2e2e2e;
-  --text: #ebebeb;
-  --text-dim: #888;
-  --text-mute: #444;
+  --bg: #050505;
+  --bg-raised: #080808;
+  --surface: rgba(255, 255, 255, 0.02);
+  --surface-2: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.05);
+  --border-2: rgba(255, 255, 255, 0.08);
+  --text: #f0f0f0;
+  --text-dim: #555;
+  --text-mute: #2a2a2a;
   --accent: #f0f0f0;
   --green: #4ade80;
   --red: #f87171;
-  --font-mono: "JetBrains Mono", "Space Mono", monospace;
+  --font-mono:
+    "JetBrains Mono", "SF Mono", "Space Mono", ui-monospace, monospace;
 }
 
 html,
@@ -36,22 +37,23 @@ body {
   font-size: 13px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-2);
-  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-mute);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Noise overlay */
@@ -62,19 +64,19 @@ body::before {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 9999;
-  opacity: 0.4;
+  opacity: 0.3;
 }
 
-/* Grid lines background */
+/* Subtle top glow */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
-  background-image:
-    linear-gradient(var(--surface) 1px, transparent 1px),
-    linear-gradient(90deg, var(--surface) 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: 0.3;
+  background: radial-gradient(
+    ellipse 60% 40% at 50% -5%,
+    rgba(255, 255, 255, 0.025) 0%,
+    transparent 70%
+  );
   pointer-events: none;
   z-index: 0;
 }
@@ -91,10 +93,14 @@ input {
   outline: none;
 }
 
+input::placeholder {
+  color: #3a3a3a;
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
