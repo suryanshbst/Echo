@@ -1,441 +1,276 @@
-import React, { useEffect, useRef, useState } from "react";
-//@ts-ignore
-import { Message } from "../hooks/UseChat";
+import { useState, useRef, useEffect } from "react";
+import type { Message } from "../hooks/UseChat";
 
 interface ChatRoomProps {
   roomId: string;
   username: string;
   messages: Message[];
-  userCount: number;
   connected: boolean;
+  userCount: number;
   onSend: (text: string) => void;
   onLeave: () => void;
 }
 
-function getTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString("en-US", {
+function getTime(ts: number) {
+  return new Date(ts).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
   });
 }
 
 export default function ChatRoom({
   roomId,
-  username,
   messages,
-  userCount,
   connected,
+  userCount,
   onSend,
   onLeave,
 }: ChatRoomProps) {
   const [inputText, setInputText] = useState("");
-  const [copied, setCopied] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom whenever a new message arrives
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   function handleSend() {
-    if (inputText.trim() === "") return;
-    if (connected === false) return;
-    onSend(inputText.trim());
+    const text = inputText.trim();
+    if (!text) return;
+    onSend(text);
     setInputText("");
   }
 
-  function handleCopyCode() {
-    navigator.clipboard.writeText(roomId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
-
   return (
-    <div style={styles.wrapper}>
-      {/* ── Sidebar ── */}
-      <aside style={styles.sidebar}>
-        <div>
-          <div style={styles.sideAppName}>VOID</div>
-
-          {/* Room code */}
-          <div style={styles.sideSection}>
-            <div style={styles.sideLabel}>room</div>
-            <div style={styles.sideRoomCode}>{roomId}</div>
-            <button style={styles.copyBtn} onClick={handleCopyCode}>
-              {copied ? "✓ copied" : "copy code"}
-            </button>
-          </div>
-
-          {/* Username */}
-          <div style={styles.sideSection}>
-            <div style={styles.sideLabel}>you</div>
-            <div style={styles.sideValue}>{username}</div>
-          </div>
-
-          {/* Online count */}
-          <div style={styles.sideSection}>
-            <div style={styles.sideLabel}>online</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span
-                style={{
-                  ...styles.dot,
-                  background: connected ? "#4ade80" : "#f87171",
-                }}
-              />
-              <span style={styles.sideValue}>
-                {userCount} {userCount === 1 ? "user" : "users"}
-              </span>
-            </div>
-          </div>
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        position: "relative",
+        zIndex: 1,
+      }}
+    >
+      {/* Sidebar */}
+      <aside
+        style={{
+          width: "200px",
+          borderRight: "1px solid var(--border)",
+          padding: "20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ fontSize: "18px", fontWeight: 500 }}>echo</div>
+        <div style={{ color: "var(--text-dim)", fontSize: "11px" }}>room</div>
+        <div
+          style={{
+            fontSize: "16px",
+            letterSpacing: "2px",
+            fontWeight: 600,
+          }}
+        >
+          {roomId}
         </div>
-
-        <button style={styles.leaveBtn} onClick={onLeave}>
-          ← leave room
+        <div style={{ color: "var(--text-dim)", fontSize: "11px" }}>
+          {userCount} online
+        </div>
+        <div
+          style={{
+            color: connected ? "var(--green)" : "var(--red)",
+            fontSize: "11px",
+          }}
+        >
+          {connected ? "● connected" : "○ disconnected"}
+        </div>
+        <button
+          onClick={onLeave}
+          style={{
+            marginTop: "auto",
+            background: "var(--surface-2)",
+            color: "var(--red)",
+            padding: "10px",
+            fontSize: "12px",
+            border: "1px solid var(--border)",
+          }}
+        >
+          leave room
         </button>
       </aside>
 
-      {/* ── Main Chat Area ── */}
-      <main style={styles.main}>
-        {/* Top bar */}
-        <div style={styles.topbar}>
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <span style={styles.topbarRoom}># {roomId}</span>
-            <span style={styles.topbarUsers}>{userCount} online</span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-              fontSize: "10px",
-              color: "#444",
-            }}
-          >
-            <span
-              style={{
-                ...styles.dot,
-                background: connected ? "#4ade80" : "#f87171",
-              }}
-            />
-            {connected ? "connected" : "disconnected"}
-          </div>
-        </div>
-
-        {/* Messages list */}
-        <div style={styles.messagesList}>
+      {/* Main Chat Area */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
+        {/* Messages */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
+          }}
+        >
           {messages.length === 0 && (
-            <div style={styles.emptyState}>
-              <div style={{ fontSize: "28px", marginBottom: "8px" }}>◌</div>
-              <div>waiting for messages...</div>
-              <div
-                style={{ fontSize: "11px", marginTop: "6px", color: "#2e2e2e" }}
-              >
-                share code{" "}
-                <strong style={{ color: "#ebebeb" }}>{roomId}</strong> to invite
-                someone
+            <div
+              style={{
+                margin: "auto",
+                textAlign: "center",
+                color: "var(--text-mute)",
+                animation: "fadeUp 0.5s ease",
+              }}
+            >
+              <div style={{ fontSize: "24px", marginBottom: "8px" }}>◌</div>
+              <div style={{ fontSize: "13px" }}>waiting for messages...</div>
+              <div style={{ fontSize: "11px", marginTop: "8px" }}>
+                share code <strong>{roomId}</strong> to invite someone
               </div>
             </div>
           )}
 
           {messages.map((msg, index) => {
-            // System messages look like dividers
             if (msg.type === "system") {
               return (
-                <div key={msg.id} style={styles.systemMsg}>
-                  <span style={styles.systemLine} />
+                <div
+                  key={msg.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    margin: "12px 0",
+                    color: "var(--text-mute)",
+                    fontSize: "11px",
+                  }}
+                >
+                  <span
+                    style={{
+                      flex: 1,
+                      height: "1px",
+                      background: "var(--border)",
+                    }}
+                  />
                   <span>{msg.text}</span>
-                  <span style={styles.systemLine} />
-                  <span style={{ fontSize: "9px", color: "#2e2e2e" }}>
-                    {getTime(msg.timestamp)}
-                  </span>
+                  <span>{getTime(msg.timestamp)}</span>
+                  <span
+                    style={{
+                      flex: 1,
+                      height: "1px",
+                      background: "var(--border)",
+                    }}
+                  />
                 </div>
               );
             }
 
-            // Check if we should show the username header above this bubble
-            // We only show it when it's the first message or the sender changed
             let showHeader = false;
-            if (index === 0) {
+            if (index === 0) showHeader = true;
+            else if (messages[index - 1].type === "system") showHeader = true;
+            else if (messages[index - 1].username !== msg.username)
               showHeader = true;
-            } else if (messages[index - 1].type === "system") {
-              showHeader = true;
-            } else if (messages[index - 1].username !== msg.username) {
-              showHeader = true;
-            }
 
             return (
               <div
                 key={msg.id}
                 style={{
+                  alignSelf: msg.isSelf ? "flex-end" : "flex-start",
+                  maxWidth: "70%",
                   display: "flex",
                   flexDirection: "column",
-                  alignItems: msg.isSelf ? "flex-end" : "flex-start",
-                  marginTop: showHeader ? "18px" : "3px",
-                  maxWidth: "68%",
-                  alignSelf: msg.isSelf ? "flex-end" : "flex-start",
+                  gap: "2px",
                 }}
               >
-                {/* Username + timestamp header */}
                 {showHeader && (
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
+                      alignItems: "baseline",
                       gap: "8px",
-                      flexDirection: msg.isSelf ? "row-reverse" : "row",
-                      marginBottom: "4px",
+                      marginTop: "8px",
                     }}
                   >
                     <span
                       style={{
                         fontSize: "11px",
-                        color: msg.isSelf ? "#4ade80" : "#888",
-                        letterSpacing: "0.06em",
+                        fontWeight: 600,
+                        color: msg.isSelf ? "var(--green)" : "var(--text-dim)",
                       }}
                     >
                       {msg.isSelf ? "you" : msg.username}
                     </span>
-                    <span style={{ fontSize: "9px", color: "#2e2e2e" }}>
+                    <span
+                      style={{ fontSize: "10px", color: "var(--text-mute)" }}
+                    >
                       {getTime(msg.timestamp)}
                     </span>
                   </div>
                 )}
-
-                {/* Message bubble */}
                 <div
-                  style={msg.isSelf ? styles.bubbleSelf : styles.bubbleOther}
+                  style={{
+                    background: msg.isSelf
+                      ? "var(--surface-2)"
+                      : "var(--surface)",
+                    border: "1px solid var(--border)",
+                    padding: "10px 14px",
+                    borderRadius: "4px",
+                    fontSize: "13px",
+                    lineHeight: 1.5,
+                    wordBreak: "break-word",
+                  }}
                 >
                   {msg.text}
                 </div>
               </div>
             );
           })}
-
           <div ref={bottomRef} />
         </div>
 
-        {/* Input bar */}
-        <div style={styles.inputBar}>
-          <span
-            style={{
-              color: "#2e2e2e",
-              fontSize: "14px",
-              fontWeight: "600",
-              userSelect: "none",
-            }}
-          >
-            &gt;
-          </span>
+        {/* Input Bar */}
+        <div
+          style={{
+            borderTop: "1px solid var(--border)",
+            padding: "16px 20px",
+            display: "flex",
+            gap: "12px",
+          }}
+        >
           <input
-            style={styles.textInput}
             type="text"
-            placeholder={connected ? "type a message..." : "reconnecting..."}
+            placeholder="type a message..."
             value={inputText}
-            disabled={!connected}
-            autoFocus
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSend();
             }}
+            style={{
+              flex: 1,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              color: "var(--text)",
+              padding: "12px 16px",
+              fontSize: "13px",
+            }}
           />
           <button
-            style={{
-              ...styles.sendBtn,
-              opacity: inputText.trim() !== "" && connected ? 1 : 0.3,
-            }}
             onClick={handleSend}
-            disabled={inputText.trim() === "" || !connected}
+            style={{
+              background: "var(--text)",
+              color: "var(--bg)",
+              padding: "12px 20px",
+              fontSize: "13px",
+            }}
           >
             send
           </button>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  wrapper: {
-    display: "flex",
-    height: "100vh",
-    width: "100vw",
-    position: "relative",
-    zIndex: 1,
-  },
-  sidebar: {
-    width: "220px",
-    minWidth: "220px",
-    background: "#0a0a0a",
-    borderRight: "1px solid #1a1a1a",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    padding: "28px 20px",
-  },
-  sideAppName: {
-    fontSize: "16px",
-    fontWeight: "700",
-    letterSpacing: "0.2em",
-    color: "#ebebeb",
-    marginBottom: "28px",
-  },
-  sideSection: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-    marginBottom: "22px",
-  },
-  sideLabel: {
-    fontSize: "10px",
-    color: "#3a3a3a",
-    letterSpacing: "0.1em",
-    textTransform: "uppercase",
-  },
-  sideValue: {
-    fontSize: "13px",
-    color: "#888",
-  },
-  sideRoomCode: {
-    fontSize: "20px",
-    fontWeight: "700",
-    letterSpacing: "0.22em",
-    color: "#ebebeb",
-  },
-  copyBtn: {
-    background: "transparent",
-    border: "1px solid #222",
-    borderRadius: "2px",
-    color: "#444",
-    fontSize: "10px",
-    letterSpacing: "0.08em",
-    padding: "5px 10px",
-    fontFamily: "inherit",
-    cursor: "pointer",
-    width: "fit-content",
-  },
-  dot: {
-    width: "6px",
-    height: "6px",
-    borderRadius: "50%",
-    display: "inline-block",
-    flexShrink: 0,
-  },
-  leaveBtn: {
-    background: "transparent",
-    border: "none",
-    color: "#333",
-    fontSize: "11px",
-    fontFamily: "inherit",
-    cursor: "pointer",
-    letterSpacing: "0.05em",
-    textAlign: "left",
-    padding: "0",
-  },
-  topbar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "16px 24px",
-    borderBottom: "1px solid #161616",
-    flexShrink: 0,
-  },
-  topbarRoom: {
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#ebebeb",
-    letterSpacing: "0.05em",
-  },
-  topbarUsers: {
-    fontSize: "11px",
-    color: "#3a3a3a",
-  },
-  main: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-    background: "#0d0d0d",
-  },
-  messagesList: {
-    flex: 1,
-    overflowY: "auto",
-    padding: "24px 28px",
-    display: "flex",
-    flexDirection: "column",
-  },
-  emptyState: {
-    margin: "auto",
-    textAlign: "center",
-    color: "#2e2e2e",
-    fontSize: "12px",
-    letterSpacing: "0.06em",
-    lineHeight: "2",
-  },
-  systemMsg: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    justifyContent: "center",
-    fontSize: "10px",
-    color: "#2e2e2e",
-    letterSpacing: "0.06em",
-    margin: "14px 0",
-  },
-  systemLine: {
-    flex: 1,
-    height: "1px",
-    background: "#181818",
-    display: "block",
-  },
-  bubbleSelf: {
-    background: "#1a1a1a",
-    border: "1px solid #2a2a2a",
-    borderRadius: "2px 2px 0 2px",
-    padding: "10px 14px",
-    color: "#ebebeb",
-    fontSize: "13px",
-    lineHeight: "1.5",
-    wordBreak: "break-word",
-  },
-  bubbleOther: {
-    background: "#0f0f0f",
-    border: "1px solid #1e1e1e",
-    borderRadius: "2px 2px 2px 0",
-    padding: "10px 14px",
-    color: "#aaa",
-    fontSize: "13px",
-    lineHeight: "1.5",
-    wordBreak: "break-word",
-  },
-  inputBar: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    padding: "16px 24px",
-    borderTop: "1px solid #161616",
-    background: "#0a0a0a",
-    flexShrink: 0,
-  },
-  textInput: {
-    flex: 1,
-    background: "transparent",
-    border: "none",
-    color: "#ebebeb",
-    fontSize: "13px",
-    fontFamily: "inherit",
-    caretColor: "#4ade80",
-  },
-  sendBtn: {
-    background: "transparent",
-    border: "1px solid #2e2e2e",
-    borderRadius: "2px",
-    color: "#888",
-    fontSize: "11px",
-    letterSpacing: "0.08em",
-    padding: "7px 16px",
-    fontFamily: "inherit",
-    cursor: "pointer",
-    flexShrink: 0,
-  },
-};

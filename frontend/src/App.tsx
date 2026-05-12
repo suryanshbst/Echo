@@ -33,8 +33,8 @@ export default function App() {
         roomId={roomId}
         username={username}
         messages={messages}
-        userCount={userCount}
         connected={connected}
+        userCount={userCount}
         onSend={sendMessage}
         onLeave={handleLeave}
       />
