@@ -72,7 +72,7 @@ export default function ChatRoom({
             color: "#f0f0f0",
           }}
         >
-          echo
+          Echo - Real Time Chat Application
         </div>
 
         <div
@@ -93,7 +93,7 @@ export default function ChatRoom({
               marginBottom: "10px",
             }}
           >
-            room
+            Room
           </div>
           <div
             style={{

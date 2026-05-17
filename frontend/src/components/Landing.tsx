@@ -120,7 +120,7 @@ export default function Landing({ onJoin }: LandingProps) {
                 color: "#f0f0f0",
               }}
             >
-              Real Time Chat
+              Echo
             </h1>
           </div>
           <p
@@ -130,7 +130,7 @@ export default function Landing({ onJoin }: LandingProps) {
               letterSpacing: "0.2px",
             }}
           >
-            Where conversations resonate
+            Your Space to Communicate
           </p>
         </div>
 
