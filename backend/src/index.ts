@@ -1,6 +1,18 @@
+import express from "express";
 import { WebSocketServer, WebSocket } from "ws";
+import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const wss = new WebSocketServer({ port: 8080 });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const PORT = process.env.PORT || 8080;
+const app = express();
+const server = http.createServer(app);
+
+// ── WebSocket Server ──
+const wss = new WebSocketServer({ server });
 
 interface User {
   socket: WebSocket;
@@ -11,161 +23,111 @@ interface User {
 let allSockets: User[] = [];
 
 wss.on("connection", (socket) => {
-  console.log("someone connected");
+  console.log("Someone connected");
 
   socket.on("message", (message) => {
     const parsedMessage = JSON.parse(message.toString());
 
-    // ── User wants to JOIN a room ──────────────────────────
     if (parsedMessage.type === "join") {
-      const roomId = parsedMessage.payload.roomId;
-      const username = parsedMessage.payload.username;
+      const { roomId, username } = parsedMessage.payload;
 
+      // Add user to tracking array
       allSockets.push({ socket, room: roomId, username });
 
-      // Count how many people are in the room now
-      let roomUserCount = 0;
-      for (let i = 0; i < allSockets.length; i++) {
-        //@ts-ignore
-        if (allSockets[i].room === roomId) {
-          roomUserCount++;
-        }
-      }
+      // Get all users in this specific room
+      const roomUsers = allSockets.filter((u) => u.room === roomId);
+      const roomUserCount = roomUsers.length;
 
-      // Tell the person who just joined that they're in
+      // Send confirmation to the user who just joined
       socket.send(
         JSON.stringify({
           type: "joined",
-          payload: {
-            roomId,
-            username,
-            userCount: roomUserCount,
-          },
+          payload: { roomId, username, userCount: roomUserCount },
         }),
       );
 
-      // Tell everyone ELSE in the room that someone joined
-      for (let i = 0; i < allSockets.length; i++) {
-        //@ts-ignore
-        if (allSockets[i].room === roomId && allSockets[i].socket !== socket) {
-          //@ts-ignore
-          allSockets[i].socket.send(
+      // Broadcast to everyone ELSE in the room
+      roomUsers.forEach((u) => {
+        if (u.socket !== socket) {
+          u.socket.send(
             JSON.stringify({
               type: "system",
               payload: {
-                message: username + " joined the room",
+                message: `${username} joined the room`,
                 userCount: roomUserCount,
                 timestamp: Date.now(),
               },
             }),
           );
         }
-      }
-
-      console.log(username + " joined room " + roomId);
+      });
     }
 
-    // ── User wants to SEND a chat message ──────────────────
     if (parsedMessage.type === "chat") {
-      // First, find which room this socket belongs to
-      let currentUserRoom = "";
-      let currentUsername = "";
+      // Find the user sending the message
+      const currentUser = allSockets.find((u) => u.socket === socket);
 
-      for (let i = 0; i < allSockets.length; i++) {
-        //@ts-ignore
-        if (allSockets[i].socket === socket) {
-          //@ts-ignore
-          currentUserRoom = allSockets[i].room;
-          //@ts-ignore
-          currentUsername = allSockets[i].username;
-        }
-      }
+      // If user isn't found (undefined), exit early
+      if (!currentUser) return;
 
-      // Send the message to EVERYONE in the same room
-      for (let i = 0; i < allSockets.length; i++) {
-        //@ts-ignore
-        if (allSockets[i].room === currentUserRoom) {
-          //@ts-ignore
-          allSockets[i].socket.send(
+      // Broadcast message to everyone in their room
+      allSockets.forEach((u) => {
+        if (u.room === currentUser.room) {
+          u.socket.send(
             JSON.stringify({
               type: "chat",
               payload: {
                 message: parsedMessage.payload.message,
-                username: currentUsername,
+                username: currentUser.username,
                 timestamp: Date.now(),
               },
             }),
           );
         }
-      }
-
-      console.log(
-        "[" +
-          currentUserRoom +
-          "] " +
-          currentUsername +
-          ": " +
-          parsedMessage.payload.message,
-      );
+      });
     }
   });
 
-  // ── User DISCONNECTS ────────────────────────────────────────
   socket.on("close", () => {
-    // Find the user who left
-    let leftUser: User | null = null;
+    // Find the user who is disconnecting
+    const leftUser = allSockets.find((u) => u.socket === socket);
 
-    for (let i = 0; i < allSockets.length; i++) {
-      //@ts-ignore
-      if (allSockets[i].socket === socket) {
-        //@ts-ignore
-        leftUser = allSockets[i];
-        break;
-      }
-    }
+    // If not found, nothing to do
+    if (!leftUser) return;
 
-    if (leftUser === null) return;
+    // Remove them from the global array
+    allSockets = allSockets.filter((u) => u.socket !== socket);
 
-    // Remove them from the list
-    let updatedSockets: User[] = [];
-    for (let i = 0; i < allSockets.length; i++) {
-      //@ts-ignore
-      if (allSockets[i].socket !== socket) {
-        //@ts-ignore
-        updatedSockets.push(allSockets[i]);
-      }
-    }
-    allSockets = updatedSockets;
+    // Calculate how many people are left in their room
+    const roomUserCount = allSockets.filter(
+      (u) => u.room === leftUser.room,
+    ).length;
 
-    // Count remaining people in the room
-    let roomUserCount = 0;
-    for (let i = 0; i < allSockets.length; i++) {
-      //@ts-ignore
-      if (allSockets[i].room === leftUser.room) {
-        roomUserCount++;
-      }
-    }
-
-    // Tell everyone still in the room that this person left
-    for (let i = 0; i < allSockets.length; i++) {
-      //@ts-ignore
-      if (allSockets[i].room === leftUser.room) {
-        //@ts-ignore
-        allSockets[i].socket.send(
+    // Notify everyone left in that room
+    allSockets.forEach((u) => {
+      if (u.room === leftUser.room) {
+        u.socket.send(
           JSON.stringify({
             type: "system",
             payload: {
-              message: leftUser.username + " left the room",
+              message: `${leftUser.username} left the room`,
               userCount: roomUserCount,
               timestamp: Date.now(),
             },
           }),
         );
       }
-    }
-
-    console.log(leftUser.username + " disconnected from room " + leftUser.room);
+    });
   });
 });
 
-console.log("Server running on ws://localhost:8080");
+// ── Serve Frontend ──
+const frontendPath = path.join(__dirname, "../../frontend/dist");
+app.use(express.static(frontendPath));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
