@@ -3,10 +3,7 @@ import Landing from "./components/Landing";
 import ChatRoom from "./components/ChatRoom";
 import { useChat } from "./hooks/UseChat";
 
-const WS_URL =
-  window.location.protocol === "https:"
-    ? `wss://${window.location.host}`
-    : `ws://${window.location.host}`;
+const WS_URL = "https://echo-8nu4.onrender.com";
 
 export default function App() {
   const [page, setPage] = useState<"landing" | "chat">("landing");
