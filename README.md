@@ -68,3 +68,45 @@
 ```bash
 git clone https://github.com/suryanshbst/Echo.git
 cd Echo
+✦ Project Structure
+Echo/
+├── backend/
+│   ├── src/
+│   │   └── index.ts          # WebSocket + Express server
+│   ├── package.json
+│   └── tsconfig.json
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx           # main router
+│   │   ├── components/
+│   │   │   ├── Landing.tsx   # room creation / join
+│   │   │   └── ChatRoom.tsx  # chat interface
+│   │   ├── hooks/
+│   │   │   └── UseChat.ts    # WebSocket hook
+│   │   └── index.css         # dark theme + noise
+│   ├── package.json
+│   └── vite.config.ts
+└── README.md
+✦ Room Protocol
+// Join a room
+{ 
+  "type": "join", 
+  "payload": { "roomId": "ABC123", "username": "alex" } 
+}
+
+// Send a message
+{ 
+  "type": "chat", 
+  "payload": { "message": "hello world" } 
+}
+
+// System event (broadcast)
+{ 
+  "type": "system", 
+  "payload": { "message": "alex joined", "userCount": 2 } 
+}
+✦ License
+MIT — built by @suryanshbst
+<div align="center">
+made with ◌ and a lot of websocket magic
+</div>
