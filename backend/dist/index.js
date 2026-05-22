@@ -1,38 +1,39 @@
+import express from "express";
 import { WebSocketServer, WebSocket } from "ws";
-const wss = new WebSocketServer({ port: 8080 });
+import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
+import cors from "cors";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PORT = process.env.PORT || 8080;
+const app = express();
+const server = http.createServer(app);
+// ── CORS for Vercel frontend ──
+app.use(cors({
+    origin: "*", // or your Vercel domain later
+}));
+// ── WebSocket Server ──
+const wss = new WebSocketServer({ server });
 let allSockets = [];
 wss.on("connection", (socket) => {
     console.log("someone connected");
     socket.on("message", (message) => {
         const parsedMessage = JSON.parse(message.toString());
-        // ── User wants to JOIN a room ──────────────────────────
         if (parsedMessage.type === "join") {
-            const roomId = parsedMessage.payload.roomId;
-            const username = parsedMessage.payload.username;
+            const { roomId, username } = parsedMessage.payload;
             allSockets.push({ socket, room: roomId, username });
-            // Count how many people are in the room now
-            let roomUserCount = 0;
-            for (let i = 0; i < allSockets.length; i++) {
-                //@ts-ignore
-                if (allSockets[i].room === roomId) {
-                    roomUserCount++;
-                }
-            }
-            // Tell the person who just joined that they're in
+            // Count users in the room
+            const roomUsers = allSockets.filter((u) => u.room === roomId);
+            const roomUserCount = roomUsers.length;
             socket.send(JSON.stringify({
                 type: "joined",
-                payload: {
-                    roomId,
-                    username,
-                    userCount: roomUserCount,
-                },
+                payload: { roomId, username, userCount: roomUserCount },
             }));
-            // Tell everyone ELSE in the room that someone joined
-            for (let i = 0; i < allSockets.length; i++) {
-                //@ts-ignore
-                if (allSockets[i].room === roomId && allSockets[i].socket !== socket) {
-                    //@ts-ignore
-                    allSockets[i].socket.send(JSON.stringify({
+            // Notify others in the room
+            roomUsers.forEach((u) => {
+                if (u.socket !== socket) {
+                    u.socket.send(JSON.stringify({
                         type: "system",
                         payload: {
                             message: username + " joined the room",
@@ -41,84 +42,42 @@ wss.on("connection", (socket) => {
                         },
                     }));
                 }
-            }
-            console.log(username + " joined room " + roomId);
+            });
         }
-        // ── User wants to SEND a chat message ──────────────────
         if (parsedMessage.type === "chat") {
-            // First, find which room this socket belongs to
-            let currentUserRoom = "";
-            let currentUsername = "";
-            for (let i = 0; i < allSockets.length; i++) {
-                //@ts-ignore
-                if (allSockets[i].socket === socket) {
-                    //@ts-ignore
-                    currentUserRoom = allSockets[i].room;
-                    //@ts-ignore
-                    currentUsername = allSockets[i].username;
-                }
-            }
-            // Send the message to EVERYONE in the same room
-            for (let i = 0; i < allSockets.length; i++) {
-                //@ts-ignore
-                if (allSockets[i].room === currentUserRoom) {
-                    //@ts-ignore
-                    allSockets[i].socket.send(JSON.stringify({
+            // Safely find the user using TypeScript-friendly .find()
+            const currentUser = allSockets.find((u) => u.socket === socket);
+            // If user isn't found, exit early (satisfies TS)
+            if (!currentUser)
+                return;
+            // Broadcast message to their room
+            allSockets.forEach((u) => {
+                if (u.room === currentUser.room) {
+                    u.socket.send(JSON.stringify({
                         type: "chat",
                         payload: {
                             message: parsedMessage.payload.message,
-                            username: currentUsername,
+                            username: currentUser.username,
                             timestamp: Date.now(),
                         },
                     }));
                 }
-            }
-            console.log("[" +
-                currentUserRoom +
-                "] " +
-                currentUsername +
-                ": " +
-                parsedMessage.payload.message);
+            });
         }
     });
-    // ── User DISCONNECTS ────────────────────────────────────────
     socket.on("close", () => {
-        // Find the user who left
-        let leftUser = null;
-        for (let i = 0; i < allSockets.length; i++) {
-            //@ts-ignore
-            if (allSockets[i].socket === socket) {
-                //@ts-ignore
-                leftUser = allSockets[i];
-                break;
-            }
-        }
-        if (leftUser === null)
+        // Safely find the leaving user
+        const leftUser = allSockets.find((u) => u.socket === socket);
+        if (!leftUser)
             return;
-        // Remove them from the list
-        let updatedSockets = [];
-        for (let i = 0; i < allSockets.length; i++) {
-            //@ts-ignore
-            if (allSockets[i].socket !== socket) {
-                //@ts-ignore
-                updatedSockets.push(allSockets[i]);
-            }
-        }
-        allSockets = updatedSockets;
-        // Count remaining people in the room
-        let roomUserCount = 0;
-        for (let i = 0; i < allSockets.length; i++) {
-            //@ts-ignore
-            if (allSockets[i].room === leftUser.room) {
-                roomUserCount++;
-            }
-        }
-        // Tell everyone still in the room that this person left
-        for (let i = 0; i < allSockets.length; i++) {
-            //@ts-ignore
-            if (allSockets[i].room === leftUser.room) {
-                //@ts-ignore
-                allSockets[i].socket.send(JSON.stringify({
+        // Remove them from the global array
+        allSockets = allSockets.filter((u) => u.socket !== socket);
+        // Get the new count for that room
+        const roomUserCount = allSockets.filter((u) => u.room === leftUser.room).length;
+        // Notify remaining users
+        allSockets.forEach((u) => {
+            if (u.room === leftUser.room) {
+                u.socket.send(JSON.stringify({
                     type: "system",
                     payload: {
                         message: leftUser.username + " left the room",
@@ -127,9 +86,14 @@ wss.on("connection", (socket) => {
                     },
                 }));
             }
-        }
-        console.log(leftUser.username + " disconnected from room " + leftUser.room);
+        });
     });
 });
-console.log("Server running on ws://localhost:8080");
+// ── Health check for Render ──
+app.get("/health", (req, res) => {
+    res.json({ status: "ok" });
+});
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
 //# sourceMappingURL=index.js.map
