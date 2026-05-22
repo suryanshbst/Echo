@@ -3,6 +3,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import cors from "cors";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,6 +11,13 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 8080;
 const app = express();
 const server = http.createServer(app);
+
+// ── CORS for Vercel frontend ──
+app.use(
+  cors({
+    origin: "*", // or your Vercel domain later
+  }),
+);
 
 // ── WebSocket Server ──
 const wss = new WebSocketServer({ server });
@@ -23,7 +31,7 @@ interface User {
 let allSockets: User[] = [];
 
 wss.on("connection", (socket) => {
-  console.log("Someone connected");
+  console.log("someone connected");
 
   socket.on("message", (message) => {
     const parsedMessage = JSON.parse(message.toString());
@@ -31,14 +39,12 @@ wss.on("connection", (socket) => {
     if (parsedMessage.type === "join") {
       const { roomId, username } = parsedMessage.payload;
 
-      // Add user to tracking array
       allSockets.push({ socket, room: roomId, username });
 
-      // Get all users in this specific room
+      // Count users in the room
       const roomUsers = allSockets.filter((u) => u.room === roomId);
       const roomUserCount = roomUsers.length;
 
-      // Send confirmation to the user who just joined
       socket.send(
         JSON.stringify({
           type: "joined",
@@ -46,14 +52,14 @@ wss.on("connection", (socket) => {
         }),
       );
 
-      // Broadcast to everyone ELSE in the room
+      // Notify others in the room
       roomUsers.forEach((u) => {
         if (u.socket !== socket) {
           u.socket.send(
             JSON.stringify({
               type: "system",
               payload: {
-                message: `${username} joined the room`,
+                message: username + " joined the room",
                 userCount: roomUserCount,
                 timestamp: Date.now(),
               },
@@ -64,13 +70,13 @@ wss.on("connection", (socket) => {
     }
 
     if (parsedMessage.type === "chat") {
-      // Find the user sending the message
+      // Safely find the user using TypeScript-friendly .find()
       const currentUser = allSockets.find((u) => u.socket === socket);
 
-      // If user isn't found (undefined), exit early
+      // If user isn't found, exit early (satisfies TS)
       if (!currentUser) return;
 
-      // Broadcast message to everyone in their room
+      // Broadcast message to their room
       allSockets.forEach((u) => {
         if (u.room === currentUser.room) {
           u.socket.send(
@@ -89,28 +95,27 @@ wss.on("connection", (socket) => {
   });
 
   socket.on("close", () => {
-    // Find the user who is disconnecting
+    // Safely find the leaving user
     const leftUser = allSockets.find((u) => u.socket === socket);
 
-    // If not found, nothing to do
     if (!leftUser) return;
 
     // Remove them from the global array
     allSockets = allSockets.filter((u) => u.socket !== socket);
 
-    // Calculate how many people are left in their room
+    // Get the new count for that room
     const roomUserCount = allSockets.filter(
       (u) => u.room === leftUser.room,
     ).length;
 
-    // Notify everyone left in that room
+    // Notify remaining users
     allSockets.forEach((u) => {
       if (u.room === leftUser.room) {
         u.socket.send(
           JSON.stringify({
             type: "system",
             payload: {
-              message: `${leftUser.username} left the room`,
+              message: leftUser.username + " left the room",
               userCount: roomUserCount,
               timestamp: Date.now(),
             },
@@ -121,11 +126,9 @@ wss.on("connection", (socket) => {
   });
 });
 
-// ── Serve Frontend ──
-const frontendPath = path.join(__dirname, "../../frontend/dist");
-app.use(express.static(frontendPath));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
+// ── Health check for Render ──
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
 });
 
 server.listen(PORT, () => {

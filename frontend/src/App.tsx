@@ -3,7 +3,10 @@ import Landing from "./components/Landing";
 import ChatRoom from "./components/ChatRoom";
 import { useChat } from "./hooks/UseChat";
 
-const WS_URL = "ws://localhost:8080";
+const WS_URL =
+  window.location.protocol === "https:"
+    ? `wss://${window.location.host}`
+    : `ws://${window.location.host}`;
 
 export default function App() {
   const [page, setPage] = useState<"landing" | "chat">("landing");
